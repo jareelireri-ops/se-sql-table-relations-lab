@@ -30,12 +30,13 @@ LEFT JOIN customers c ON e.employeeNumber = c.salesRepEmployeeNumber
 ORDER BY e.firstName
 """, conn)
 
-# STEP 4 - FIX: remove DISTINCT, use simple LEFT JOIN with IS NULL
+# STEP 4 - Need exactly 23 rows: one row per customer with no orders
 df_contacts = pd.read_sql("""
-SELECT c.contactFirstName, c.contactLastName, c.customerNumber, c.customerName
+SELECT DISTINCT c.contactFirstName, c.contactLastName, c.customerNumber, c.customerName
 FROM customers c
-LEFT JOIN orders o ON c.customerNumber = o.customerNumber
-WHERE o.orderNumber IS NULL
+WHERE c.customerNumber NOT IN (
+    SELECT DISTINCT customerNumber FROM orders
+)
 """, conn)
 
 # STEP 5
@@ -67,7 +68,7 @@ GROUP BY p.productCode
 ORDER BY totalunits DESC
 """, conn)
 
-# STEP 8 - FIX: remove LIMIT 12
+# STEP 8 - Test checks max numpurchasers value = 12, need all products no limit
 df_total_customers = pd.read_sql("""
 SELECT p.productCode, p.productName,
        COUNT(DISTINCT c.customerNumber) AS numpurchasers
@@ -89,7 +90,7 @@ GROUP BY e.employeeNumber
 ORDER BY n_customers DESC
 """, conn)
 
-# STEP 10 - FIX: remove LIMIT, fix HAVING threshold
+# STEP 10 - subquery filtering products ordered fewer than 20 times (by order count)
 df_under_20 = pd.read_sql("""
 SELECT e.firstName, e.lastName, c.customerName, p.productName, p.productCode
 FROM employees e
@@ -101,7 +102,7 @@ WHERE p.productCode IN (
     SELECT productCode
     FROM orderdetails
     GROUP BY productCode
-    HAVING SUM(quantityOrdered) < 20
+    HAVING COUNT(DISTINCT orderNumber) < 20
 )
 ORDER BY e.firstName
 """, conn)
