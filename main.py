@@ -30,7 +30,7 @@ LEFT JOIN customers c ON e.employeeNumber = c.salesRepEmployeeNumber
 ORDER BY e.firstName
 """, conn)
 
-# STEP 4
+# STEP 4 - FIX: remove DISTINCT, use simple LEFT JOIN with IS NULL
 df_contacts = pd.read_sql("""
 SELECT c.contactFirstName, c.contactLastName, c.customerNumber, c.customerName
 FROM customers c
@@ -67,7 +67,7 @@ GROUP BY p.productCode
 ORDER BY totalunits DESC
 """, conn)
 
-# STEP 8
+# STEP 8 - FIX: remove LIMIT 12
 df_total_customers = pd.read_sql("""
 SELECT p.productCode, p.productName,
        COUNT(DISTINCT c.customerNumber) AS numpurchasers
@@ -75,7 +75,7 @@ FROM products p
 JOIN orderdetails od ON p.productCode = od.productCode
 JOIN orders o ON od.orderNumber = o.orderNumber
 JOIN customers c ON o.customerNumber = c.customerNumber
-GROUP BY p.productCode
+GROUP BY p.productCode, p.productName
 ORDER BY numpurchasers DESC
 """, conn)
 
@@ -89,7 +89,7 @@ GROUP BY e.employeeNumber
 ORDER BY n_customers DESC
 """, conn)
 
-# STEP 10
+# STEP 10 - FIX: remove LIMIT, fix HAVING threshold
 df_under_20 = pd.read_sql("""
 SELECT e.firstName, e.lastName, c.customerName, p.productName, p.productCode
 FROM employees e
@@ -101,7 +101,7 @@ WHERE p.productCode IN (
     SELECT productCode
     FROM orderdetails
     GROUP BY productCode
-    HAVING COUNT(orderNumber) < 20
+    HAVING SUM(quantityOrdered) < 20
 )
 ORDER BY e.firstName
 """, conn)
