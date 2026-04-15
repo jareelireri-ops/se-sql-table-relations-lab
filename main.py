@@ -17,26 +17,27 @@ WHERE o.city = 'Boston'
 df_zero_emp = pd.read_sql("""
 SELECT o.city, COUNT(e.employeeNumber) AS num_employees
 FROM offices o
-JOIN employees e ON o.officeCode = e.officeCode
+LEFT JOIN employees e ON o.officeCode = e.officeCode
 GROUP BY o.city
 HAVING COUNT(e.employeeNumber) = 0
 """, conn)
 
 # STEP 3
 df_employee = pd.read_sql("""
-SELECT e.firstName, e.lastName, e.employeeNumber, c.customerNumber
+SELECT e.firstName, e.lastName, o.city, o.state
 FROM employees e
-LEFT JOIN customers c ON e.employeeNumber = c.salesRepEmployeeNumber
-ORDER BY e.firstName
+LEFT JOIN offices o ON e.officeCode = o.officeCode
+ORDER BY e.firstName, e.lastName
 """, conn)
 
-# STEP 4 - Need exactly 23 rows: one row per customer with no orders
+# STEP 4
 df_contacts = pd.read_sql("""
-SELECT DISTINCT c.contactFirstName, c.contactLastName, c.customerNumber, c.customerName
+SELECT c.contactFirstName, c.contactLastName, c.phone, c.salesRepEmployeeNumber
 FROM customers c
 WHERE c.customerNumber NOT IN (
-    SELECT DISTINCT customerNumber FROM orders
+    SELECT customerNumber FROM orders
 )
+ORDER BY c.contactLastName
 """, conn)
 
 # STEP 5
@@ -49,7 +50,7 @@ ORDER BY CAST(p.amount AS REAL) DESC
 
 # STEP 6
 df_credit = pd.read_sql("""
-SELECT e.firstName, e.lastName, e.employeeNumber,
+SELECT e.employeeNumber, e.firstName, e.lastName,
        COUNT(c.customerNumber) AS num_customers
 FROM employees e
 JOIN customers c ON e.employeeNumber = c.salesRepEmployeeNumber
@@ -60,51 +61,53 @@ ORDER BY num_customers DESC
 
 # STEP 7
 df_product_sold = pd.read_sql("""
-SELECT p.productCode, p.productName,
+SELECT p.productName,
+       COUNT(od.orderNumber) AS numorders,
        SUM(od.quantityOrdered) AS totalunits
 FROM products p
 JOIN orderdetails od ON p.productCode = od.productCode
-GROUP BY p.productCode
+GROUP BY p.productCode, p.productName
 ORDER BY totalunits DESC
 """, conn)
 
-# STEP 8 - Test checks max numpurchasers value = 12, need all products no limit
+# STEP 8
 df_total_customers = pd.read_sql("""
-SELECT p.productCode, p.productName,
-       COUNT(DISTINCT c.customerNumber) AS numpurchasers
+SELECT p.productName, p.productCode,
+       COUNT(DISTINCT o.customerNumber) AS numpurchasers
 FROM products p
 JOIN orderdetails od ON p.productCode = od.productCode
 JOIN orders o ON od.orderNumber = o.orderNumber
-JOIN customers c ON o.customerNumber = c.customerNumber
 GROUP BY p.productCode, p.productName
 ORDER BY numpurchasers DESC
 """, conn)
 
 # STEP 9
 df_customers = pd.read_sql("""
-SELECT e.employeeNumber, e.firstName, e.lastName,
-       COUNT(c.customerNumber) AS n_customers
-FROM employees e
+SELECT COUNT(c.customerNumber) AS n_customers,
+       o.officeCode, o.city
+FROM offices o
+JOIN employees e ON o.officeCode = e.officeCode
 JOIN customers c ON e.employeeNumber = c.salesRepEmployeeNumber
-GROUP BY e.employeeNumber
-ORDER BY n_customers DESC
+GROUP BY o.officeCode, o.city
+ORDER BY o.officeCode
 """, conn)
 
-# STEP 10 - subquery filtering products ordered fewer than 20 times (by order count)
+# STEP 10
 df_under_20 = pd.read_sql("""
-SELECT e.firstName, e.lastName, c.customerName, p.productName, p.productCode
+SELECT DISTINCT e.employeeNumber, e.firstName, e.lastName, o.city, o.officeCode
 FROM employees e
+JOIN offices o ON e.officeCode = o.officeCode
 JOIN customers c ON e.employeeNumber = c.salesRepEmployeeNumber
-JOIN orders o ON c.customerNumber = o.customerNumber
-JOIN orderdetails od ON o.orderNumber = od.orderNumber
-JOIN products p ON od.productCode = p.productCode
-WHERE p.productCode IN (
-    SELECT productCode
-    FROM orderdetails
-    GROUP BY productCode
-    HAVING COUNT(DISTINCT orderNumber) < 20
+JOIN orders ord ON c.customerNumber = ord.customerNumber
+JOIN orderdetails od ON ord.orderNumber = od.orderNumber
+WHERE od.productCode IN (
+    SELECT od2.productCode
+    FROM orderdetails od2
+    JOIN orders o2 ON od2.orderNumber = o2.orderNumber
+    GROUP BY od2.productCode
+    HAVING COUNT(DISTINCT o2.customerNumber) < 20
 )
-ORDER BY e.firstName
+ORDER BY e.lastName
 """, conn)
 
 conn.close()
