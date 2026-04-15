@@ -37,7 +37,6 @@ SELECT c.contactFirstName, c.contactLastName, c.customerNumber, c.customerName
 FROM customers c
 LEFT JOIN orders o ON c.customerNumber = o.customerNumber
 WHERE o.orderNumber IS NULL
-ORDER BY c.contactFirstName
 """, conn)
 
 # STEP 5 — CAST amount to sort numerically
@@ -56,8 +55,9 @@ FROM employees e
 JOIN customers c ON e.employeeNumber = c.salesRepEmployeeNumber
 GROUP BY e.employeeNumber
 HAVING AVG(c.creditLimit) > 90000
-ORDER BY e.firstName
+ORDER BY num_customers DESC
 """, conn)
+
 
 # STEP 7 — SUM units per product
 df_product_sold = pd.read_sql("""
@@ -100,7 +100,8 @@ JOIN customers c ON e.employeeNumber = c.salesRepEmployeeNumber
 JOIN orders o ON c.customerNumber = o.customerNumber
 JOIN orderdetails od ON o.orderNumber = od.orderNumber
 JOIN products p ON od.productCode = p.productCode
-WHERE p.productCode IN (
+WHERE p.productCode IN (...)
+ORDER BY e.firstName
     SELECT productCode
     FROM orderdetails
     GROUP BY productCode
