@@ -32,7 +32,7 @@ ORDER BY e.firstName
 
 # STEP 4
 df_contacts = pd.read_sql("""
-SELECT DISTINCT c.contactFirstName, c.contactLastName, c.customerNumber, c.customerName
+SELECT c.contactFirstName, c.contactLastName, c.customerNumber, c.customerName
 FROM customers c
 LEFT JOIN orders o ON c.customerNumber = o.customerNumber
 WHERE o.orderNumber IS NULL
@@ -75,9 +75,8 @@ FROM products p
 JOIN orderdetails od ON p.productCode = od.productCode
 JOIN orders o ON od.orderNumber = o.orderNumber
 JOIN customers c ON o.customerNumber = c.customerNumber
-GROUP BY p.productCode, p.productName
+GROUP BY p.productCode
 ORDER BY numpurchasers DESC
-LIMIT 12
 """, conn)
 
 # STEP 9
@@ -105,7 +104,6 @@ WHERE p.productCode IN (
     HAVING COUNT(orderNumber) < 20
 )
 ORDER BY e.firstName
-LIMIT 15
 """, conn)
 
 conn.close()
